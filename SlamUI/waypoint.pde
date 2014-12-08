@@ -19,6 +19,6 @@ class Waypoint
   {
     stroke(255, 255, 0); //Robot position/direction arrow
     noFill();
-    ellipse((int)((mpd_rob_x/mpd_map_resolution_mm) / mapScaleFacX), (int)(((mpd_map_size_Y - mpd_rob_y) / mpd_map_resolution_mm) / mapScaleFacY), 40, 40);
+   // ellipse((int)((mpd_rob_x/mpd_map_resolution_mm) / mapScaleFacX), (int)(((mpd_map_size_Y - mpd_rob_y) / mpd_map_resolution_mm) / mapScaleFacY), 40, 40);
   }
 }
