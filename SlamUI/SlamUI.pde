@@ -57,9 +57,17 @@ void draw()
       }
     }
   
-    stroke(255, 0, 0);
+    stroke(255, 0, 0); //Robot position/direction arrow
     noFill();
-    ellipse((int)((mpd_rob_x/mpd_map_resolution_mm) * mapScaleFacX), (int)((mpd_map_size_Y - (mpd_rob_y/mpd_map_resolution_mm)) * mapScaleFacY), 20, 20);
+    line((int)((mpd_rob_x/mpd_map_resolution_mm) / mapScaleFacX),
+         (int)(((mpd_map_size_Y - mpd_rob_y) / mpd_map_resolution_mm) / mapScaleFacY),
+         (int)((mpd_rob_x/mpd_map_resolution_mm) / mapScaleFacX) + 20 * sin((70 + mpd_rob_dir) * (PI / 180)),
+         (int)(((mpd_map_size_Y - mpd_rob_y) / mpd_map_resolution_mm) / mapScaleFacY) - 20 * cos((70 + mpd_rob_dir) * (PI / 180)));
+    line((int)((mpd_rob_x/mpd_map_resolution_mm) / mapScaleFacX),
+         (int)(((mpd_map_size_Y - mpd_rob_y) / mpd_map_resolution_mm) / mapScaleFacY),
+         (int)((mpd_rob_x/mpd_map_resolution_mm) / mapScaleFacX) + 20 * sin((110 + mpd_rob_dir) * (PI / 180)),
+         (int)(((mpd_map_size_Y - mpd_rob_y) / mpd_map_resolution_mm) / mapScaleFacY) - 20 * cos((110 + mpd_rob_dir) * (PI / 180)));
+    // ellipse((int)((mpd_rob_x/mpd_map_resolution_mm) / mapScaleFacX), (int)(((mpd_map_size_Y - mpd_rob_y) / mpd_map_resolution_mm) / mapScaleFacY), 40, 40);
   }
   //bt.write('A');
     
