@@ -22,8 +22,11 @@ class Map
   private int rob_z;
   private int rob_dir;
   
-  public char[][][] map;
+  private int[][][] map;
 
+  private int mapMsgCount = 0; //Map has to be buffered seperately, because the Serial.buffer function is not working correctly with huge numbers...
+  private int[] mapBuf;
+          
   Map(PApplet parent, String port, int baud)
   {
     p = parent;
@@ -45,7 +48,6 @@ class Map
     rob_y = 0;
     rob_z = 0;
     rob_dir = 0;
-    map = new char[300][300][1];
   }
   
   // We need a class descended from PApplet so that we can override the
@@ -55,16 +57,20 @@ class Map
   // serial ports.  This class needs to be public so that the Serial class
   // can access its serialEvent() method.
   //SOURCE: http://playground.arduino.cc/Interfacing/Processing
-  public class SerialProxy extends PApplet {
+  public class SerialProxy extends PApplet
+  {
     public SerialProxy() {
     }
 
-    public void serialEvent(Serial which) {
-      try {
+    public void serialEvent(Serial which)
+    {
+      try
+      {
         // Notify the Arduino class that there's serial data for it to process.
         while (which.available() > 0)
           processSerialIn(which);
-      } catch (Exception e) {
+      } catch (Exception e) 
+      {
         e.printStackTrace();
         throw new RuntimeException("Error inside map.serialEvent()");
       }
@@ -79,7 +85,7 @@ class Map
           if(getStart(btIn) == true)
           {
             p.println("Start gef");
-            bt.buffer(2); //Buffer length (2 bytes)
+            btIn.buffer(2); //Buffer length (2 bytes)
             sm_main ++;
           }
         //  else if(sm_getStart == 0)
@@ -90,13 +96,13 @@ class Map
           msg_len = btIn.read() + (btIn.read() << 8);
           p.println("");
           p.println("Lenght: " + msg_len);
-          bt.buffer(4); //Buffer Checksum (4 bytes)
+          btIn.buffer(4); //Buffer Checksum (4 bytes)
           sm_main ++;
         break;
       case 2:
           msg_chk = btIn.read() + (btIn.read() << 8) + (btIn.read() << 16) + (btIn.read() << 24);
           p.println("Checksum: " + msg_chk);
-          bt.buffer(3); //Buffer ID (3 bytes)
+          btIn.buffer(3); //Buffer ID (3 bytes)
           sm_main ++;
         break;
       case 3:
@@ -108,36 +114,49 @@ class Map
           if(msg_id.equals("MPD"))
           {
             p.println("Received Mapdata");
-            bt.buffer(msg_len); //Buffer data
+            btIn.buffer(msg_len); //Buffer data
             sm_main = 4;
           }
           else if(msg_id.equals("MAP"))
           {
-            p.println("Received Map");
-            bt.buffer(msg_len);
-            sm_main = 5;
+            if(map == null) //Not received mapData yet
+            {
+              p.println("Received Map, but not Mapdatay yet...");
+              btIn.buffer(1); //Search start
+              sm_main = 0;
+            }
+            else
+            {
+              p.println("Received Map");
+               
+              mapMsgCount = 0;
+              mapBuf = new int[msg_len];
+              btIn.buffer(1); //buffer each received byte in the mapBuf,...
+              
+              sm_main = 5;
+            }
           }
           else if(msg_id.equals("LWP"))
           {
             p.println("Received Waypoint List");
-            bt.buffer(msg_len);
+            btIn.buffer(msg_len);
             sm_main = 6;
           }
           else
           {
             p.println("Failed to match ID: " + msg_id);
-            bt.buffer(1); //Search start
+            btIn.buffer(1); //Search start
             sm_main = 0;
           }
         break;
       case 4: //MPD
           
-          char[] buf = new char[msg_len];
+          int[] buf = new int[msg_len];
           int msg_chk_computed = 0;
           
           for(int i = 0; i < msg_len; i++) //Compute received checksum
           {
-            buf[i] = btIn.readChar();
+            buf[i] = btIn.read();
             msg_chk_computed += buf[i];
           }
           
@@ -154,9 +173,8 @@ class Map
             rob_z = buf[10];
             rob_dir = buf[11] + (buf[12] << 8);
             
-            //frame.setResizable(true);
-            //frame.setSize(map_size_X/map_resolution_mm, map_size_Y/map_resolution_mm);
-            //frame.setResizable(false);
+            if(map == null)
+              map = new int[map_size_X / map_resolution_mm][map_size_Y / map_resolution_mm][map_layers];
           }
           else
             p.println("chk not matching! comp: " + msg_chk_computed);
@@ -164,41 +182,49 @@ class Map
           sm_main = 0;
         break;
       case 5: //MAP
-          
-          char[] mapBuf = new char[msg_len];
-          int map_chk_computed = 0;
-          
-          for(int i = 0; i < msg_len; i++) //Compute received checksum
+        
+          if(mapMsgCount < msg_len)
           {
-            mapBuf[i] = bt.readChar();
-            map_chk_computed += mapBuf[i];
-          }
-          
-          if(map_chk_computed == msg_chk)
-          {
-            p.println("checksum matches!");
-            
-            for(int x = 0; x < (map_size_X/map_resolution_mm); x ++)
-            {
-              int y = mapBuf[1] + (mapBuf[2] << 8);
-              int z = mapBuf[0];
-              
-              map[x][y][z] = mapBuf[x + 3];
-            }
+            mapBuf[mapMsgCount] = btIn.read();
+            mapMsgCount ++;
           }
           else
-            p.println("chk not matching! comp: " + map_chk_computed);
+          {
+            //int[] mapBuf = new int[msg_len];
+            int map_chk_computed = 0;
             
-          sm_main = 0;
+            for(int i = 0; i < msg_len; i++) //Compute received checksum
+            {
+              map_chk_computed += mapBuf[i];
+            }
+            
+            if(map_chk_computed == msg_chk)
+            {
+              p.println("checksum matches!");
+              
+              int y = mapBuf[1] + (mapBuf[2] << 8);
+              int z = mapBuf[0];
+               
+              for(int x = 0; x < (map_size_X / map_resolution_mm); x ++)
+              {
+                map[x][y][z] = mapBuf[x + 3];
+              }
+            }
+            else
+              p.println("chk not matching! comp: " + map_chk_computed);
+            
+            sm_main = 0;
+          }
+          
         break;
       case 6: //LWP (Waypoint List)
           
-          char[] wpBuf = new char[msg_len];
+          int[] wpBuf = new int[msg_len];
           int wp_chk_computed = 0;
           
           for(int i = 0; i < msg_len; i++) //Compute received checksum
           {
-            wpBuf[i] = btIn.readChar();
+            wpBuf[i] = btIn.read();
             wp_chk_computed += wpBuf[i];
           }
           
@@ -206,12 +232,9 @@ class Map
           {
             p.println("checksum matches!");
             
-            for(int x = 0; x < (map_size_X/map_resolution_mm); x ++)
+            for(int i = 0; i < (msg_len/11); i ++)
             {
-              int y = wpBuf[1] + (wpBuf[2] << 8);
-              int z = wpBuf[0];
               
-              //map[x][y][z] = mapBuf[x + 3];
             }
           }
           else
@@ -347,5 +370,18 @@ class Map
   public int getRobOrientation()
   {
     return rob_dir;
+  }
+  
+  public int getVarAt(int x, int y, int z)
+  {
+    if(map == null)
+      return -1;
+    else
+      return map[x][y][z];
+  }
+  
+  public void setVarAt(int var, int x, int y, int z)
+  {
+    map[x][y][z] = var;
   }
 }
