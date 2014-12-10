@@ -3,9 +3,11 @@ import processing.serial.*;
 
 class Map
 {
-  PApplet p;
-  Serial bt;
-  SerialProxy serialProxy;
+  private PApplet p;
+  private Serial bt;
+  private SerialProxy serialProxy;
+  
+  private boolean debug;
   
   private int sm_main;
   private int sm_getStart;
@@ -26,7 +28,11 @@ class Map
 
   private int mapMsgCount = 0; //Map has to be buffered seperately, because the Serial.buffer function is not working correctly with huge numbers...
   private int[] mapBuf;
-          
+  
+  private Waypoint[] wp;
+  private Waypoint wpStart;
+  private int wp_amount;
+  
   Map(PApplet parent, String port, int baud)
   {
     p = parent;
@@ -48,6 +54,8 @@ class Map
     rob_y = 0;
     rob_z = 0;
     rob_dir = 0;
+    
+    debug = true;
   }
   
   // We need a class descended from PApplet so that we can override the
@@ -77,6 +85,12 @@ class Map
     }
   }
 
+  private void prntLn(String out)
+  {
+    if(debug)
+      p.println(out);
+  }
+  
   public void processSerialIn(Serial btIn)
   {
     switch(sm_main)
@@ -84,7 +98,7 @@ class Map
       case 0:
           if(getStart(btIn) == true)
           {
-            p.println("Start gef");
+            prntLn("Start gef");
             btIn.buffer(2); //Buffer length (2 bytes)
             sm_main ++;
           }
@@ -94,14 +108,14 @@ class Map
         break;
       case 1:
           msg_len = btIn.read() + (btIn.read() << 8);
-          p.println("");
-          p.println("Lenght: " + msg_len);
+          prntLn("");
+          prntLn("Lenght: " + msg_len);
           btIn.buffer(4); //Buffer Checksum (4 bytes)
           sm_main ++;
         break;
       case 2:
           msg_chk = btIn.read() + (btIn.read() << 8) + (btIn.read() << 16) + (btIn.read() << 24);
-          p.println("Checksum: " + msg_chk);
+          prntLn("Checksum: " + msg_chk);
           btIn.buffer(3); //Buffer ID (3 bytes)
           sm_main ++;
         break;
@@ -113,7 +127,7 @@ class Map
           
           if(msg_id.equals("MPD"))
           {
-            p.println("Received Mapdata");
+            prntLn("Received Mapdata");
             btIn.buffer(msg_len); //Buffer data
             sm_main = 4;
           }
@@ -121,13 +135,13 @@ class Map
           {
             if(map == null) //Not received mapData yet
             {
-              p.println("Received Map, but not Mapdatay yet...");
+              prntLn("Received Map, but not Mapdatay yet...");
               btIn.buffer(1); //Search start
               sm_main = 0;
             }
             else
             {
-              p.println("Received Map");
+              prntLn("Received Map");
                
               mapMsgCount = 0;
               mapBuf = new int[msg_len];
@@ -138,13 +152,13 @@ class Map
           }
           else if(msg_id.equals("LWP"))
           {
-            p.println("Received Waypoint List");
+            prntLn("Received Waypoint List");
             btIn.buffer(msg_len);
             sm_main = 6;
           }
           else
           {
-            p.println("Failed to match ID: " + msg_id);
+            prntLn("Failed to match ID: " + msg_id);
             btIn.buffer(1); //Search start
             sm_main = 0;
           }
@@ -162,7 +176,7 @@ class Map
           
           if(msg_chk_computed == msg_chk)
           {
-            p.println("checksum matches!");
+            prntLn("checksum matches!");
             
             map_resolution_mm = buf[0];
             map_size_X = buf[1] + (buf[2] << 8);
@@ -177,7 +191,7 @@ class Map
               map = new int[map_size_X / map_resolution_mm][map_size_Y / map_resolution_mm][map_layers];
           }
           else
-            p.println("chk not matching! comp: " + msg_chk_computed);
+            prntLn("chk not matching! comp: " + msg_chk_computed);
             
           sm_main = 0;
         break;
@@ -200,7 +214,7 @@ class Map
             
             if(map_chk_computed == msg_chk)
             {
-              p.println("checksum matches!");
+              prntLn("checksum matches!");
               
               int y = mapBuf[1] + (mapBuf[2] << 8);
               int z = mapBuf[0];
@@ -211,7 +225,7 @@ class Map
               }
             }
             else
-              p.println("chk not matching! comp: " + map_chk_computed);
+              prntLn("chk not matching! comp: " + map_chk_computed);
             
             sm_main = 0;
           }
@@ -219,26 +233,53 @@ class Map
         break;
       case 6: //LWP (Waypoint List)
           
+          /// One waypoint contains:
+          /// x (2 bytes)
+          /// y (2 bytes)
+          /// z (1 byte)
+          /// id (2 bytes)
+          /// id_next (2 bytes)
+          /// id prev (2 bytes)
+          /// -> 11 bytes per waypoint
+
           int[] wpBuf = new int[msg_len];
           int wp_chk_computed = 0;
           
           for(int i = 0; i < msg_len; i++) //Compute received checksum
           {
             wpBuf[i] = btIn.read();
+            
             wp_chk_computed += wpBuf[i];
           }
           
           if(wp_chk_computed == msg_chk)
           {
-            p.println("checksum matches!");
+            prntLn("checksum matches!");
+            wp_amount = wpBuf[0] + (wpBuf[1] << 8);
             
-            for(int i = 0; i < (msg_len/11); i ++)
+            wp = new Waypoint[wp_amount]; //We reserve the memory for all waypoints to transmit
+            
+            for(int i = 0; i < wp_amount; i ++) //The list is transmitted in the order they are linked!
             {
-              
+              wp[i] = new Waypoint(p);
+              wp[i].setPosX(wpBuf[(i * 9) + 2] + (wpBuf[(i * 9) + 3] << 8));
+              wp[i].setPosY(wpBuf[(i * 9) + 4] + (wpBuf[(i * 9) + 5] << 8));
+              wp[i].setPosZ((byte)wpBuf[(i * 9) + 6]);
+              wp[i].setID(wpBuf[(i * 9) + 7] + (wpBuf[(i * 9) + 8] << 8));
+              int wpID_prev = wpBuf[(i * 9) + 9] + (wpBuf[(i * 9) + 10] << 8);
+              if(wpID_prev != -1 && i != 0) //There is a waypoint in the list before this one, otherwise it represents the start of the list
+              {
+                wp[i-1].setNext(wp[i]);
+                wp[i].setPrev(wp[i-1]);
+              }
+              else
+              {
+                wpStart = wp[i];
+              }
             }
           }
           else
-            p.println("chk not matching! comp: " + wp_chk_computed);
+            prntLn("chk not matching! comp: " + wp_chk_computed);
             
           sm_main = 0;
         break;
@@ -304,6 +345,11 @@ class Map
     }
     
     return retVar;
+  }
+  
+  void setDebug(boolean state) //Un/activate debug
+  {
+    debug = state;
   }
   
   void stopConnection()
@@ -378,6 +424,24 @@ class Map
       return -1;
     else
       return map[x][y][z];
+  }
+  
+  public int getWPamount()
+  {
+     return wp_amount;
+  }
+  
+  public Waypoint getWPofID(int i)
+  {
+     if(i > 0 && i < wp_amount)
+       return wp[i];
+     else
+       return null;
+  }
+  
+  public Waypoint getWPstart()
+  {
+     return wpStart;
   }
   
   public void setVarAt(int var, int x, int y, int z)

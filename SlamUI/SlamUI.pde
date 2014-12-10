@@ -12,15 +12,19 @@ import processing.core.*;
 
 Map map;
 
+final static int ROBOT_MAP_SIZE = 15;
+final static int WP_MAP_SIZE = 5;
+
 void setup() 
 {
   size(800, 600);
   frame.setResizable(true);
   
-  frameRate(4);
+  //frameRate(4);
   println(Serial.list());
   
   map = new Map(this, "/dev/rfcomm0", 460800);
+  map.setDebug(true);
 }
 
 void draw()
@@ -53,14 +57,35 @@ void draw()
     noFill();
     line((int)(map.getRobPosXPx() / mapScaleFacX),
          (int)((map.getMapSizeYPx() - map.getRobPosYPx()) / mapScaleFacY),
-         (int)(map.getRobPosXPx() / mapScaleFacX) + 20 * sin((70 + map.getRobOrientation()) * (PI / 180)),
-         (int)((map.getMapSizeYPx() - map.getRobPosYPx()) / mapScaleFacY) - 20 * cos((70 + map.getRobOrientation()) * (PI / 180)));
+         (int)(map.getRobPosXPx() / mapScaleFacX) + (ROBOT_MAP_SIZE / mapScaleFacX) * sin((70 + map.getRobOrientation()) * (PI / 180)),
+         (int)((map.getMapSizeYPx() - map.getRobPosYPx()) / mapScaleFacY) - (ROBOT_MAP_SIZE / mapScaleFacY) * cos((70 + map.getRobOrientation()) * (PI / 180)));
     line((int)(map.getRobPosXPx() / mapScaleFacX),
          (int)((map.getMapSizeYPx() - map.getRobPosYPx()) / mapScaleFacY),
-         (int)(map.getRobPosXPx() / mapScaleFacX) + 20 * sin((110 + map.getRobOrientation()) * (PI / 180)),
-         (int)((map.getMapSizeYPx() - map.getRobPosYPx()) / mapScaleFacY) - 20 * cos((110 + map.getRobOrientation()) * (PI / 180)));
+         (int)(map.getRobPosXPx() / mapScaleFacX) + (ROBOT_MAP_SIZE / mapScaleFacX) * sin((110 + map.getRobOrientation()) * (PI / 180)),
+         (int)((map.getMapSizeYPx() - map.getRobPosYPx()) / mapScaleFacY) - (ROBOT_MAP_SIZE / mapScaleFacY) * cos((110 + map.getRobOrientation()) * (PI / 180)));
     // ellipse((int)((mpd_rob_x/map.getMapResolutionMM()) / mapScaleFacX), (int)(((mpd_map_size_Y - mpd_rob_y) / map.getMapResolutionMM()) / mapScaleFacY), 40, 40);
+    
+    Waypoint wpMap = map.getWPstart();
+    if(wpMap != null)
+    {
+      println("Waypoints: "+map.getWPamount());
+      
+      for(int i = 0; i < map.getWPamount(); i++)
+      {
+        ellipse((int)((wpMap.getPosX()/map.getMapResolutionMM()) / mapScaleFacX), (int)(((map.getMapSizeYMM() - wpMap.getPosY()) / map.getMapResolutionMM()) / mapScaleFacY), WP_MAP_SIZE / mapScaleFacX, WP_MAP_SIZE / mapScaleFacY);
+        if(wpMap.getPrev() != null)
+        {
+          line((wpMap.getPrev().getPosX()/map.getMapResolutionMM()) / mapScaleFacX,
+               (int)(((map.getMapSizeYMM() - wpMap.getPrev().getPosY()) / map.getMapResolutionMM()) / mapScaleFacY),
+               (wpMap.getPosX()/map.getMapResolutionMM()) / mapScaleFacX,
+               (int)(((map.getMapSizeYMM() - wpMap.getPosY()) / map.getMapResolutionMM()) / mapScaleFacY));
+        }
+        wpMap = wpMap.getNext();
+      }
+    }    
   }
+  
+  
   //bt.write('A');
     
   /*fill(50);
@@ -97,26 +122,3 @@ void exit()
   
   map.stopConnection();
 }
-
-/*
-
-// Wiring / Arduino Code
-// Code for sensing a switch status and writing the value to the serial port.
-
-int switchPin = 4;                       // Switch connected to pin 4
-
-void setup() {
-  pinMode(switchPin, INPUT);             // Set pin 0 as an input
-  Serial.begin(9600);                    // Start serial communication at 9600 bps
-}
-
-void loop() {
-  if (digitalRead(switchPin) == HIGH) {  // If switch is ON,
-    Serial.write(1);               // send 1 to Processing
-  } else {                               // If the switch is not ON,
-    Serial.write(0);               // send 0 to Processing
-  }
-  delay(100);                            // Wait 100 milliseconds
-}
-
-*/
