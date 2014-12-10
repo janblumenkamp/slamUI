@@ -68,8 +68,6 @@ void draw()
     Waypoint wpMap = map.getWPstart();
     if(wpMap != null)
     {
-      println("Waypoints: "+map.getWPamount());
-      
       for(int i = 0; i < map.getWPamount(); i++)
       {
         ellipse((int)((wpMap.getPosX()/map.getMapResolutionMM()) / mapScaleFacX), (int)(((map.getMapSizeYMM() - wpMap.getPosY()) / map.getMapResolutionMM()) / mapScaleFacY), WP_MAP_SIZE / mapScaleFacX, WP_MAP_SIZE / mapScaleFacY);

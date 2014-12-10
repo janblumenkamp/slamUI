@@ -12,7 +12,8 @@ class Map
   private int sm_main;
   private int sm_getStart;
   private String msg_id;
-  private int msg_chk;
+  private int msg_chk; //Received checksum
+  private int msg_chk_computed; //Computed checksum (has to be compared with msg_chk)
   private int msg_len;
   
   private int map_resolution_mm;
@@ -26,8 +27,8 @@ class Map
   
   private int[][][] map;
 
-  private int mapMsgCount = 0; //Map has to be buffered seperately, because the Serial.buffer function is not working correctly with huge numbers...
-  private int[] mapBuf;
+  private int msgBufCount = 0; //Messagebuffer index (the Serial.buffer function is not working correctly...)
+  private int[] msgBuf; //message buffer
   
   private Waypoint[] wp;
   private Waypoint wpStart;
@@ -38,12 +39,12 @@ class Map
     p = parent;
     serialProxy = new SerialProxy();
     bt = new Serial(serialProxy, port, baud);
-    bt.buffer(1); //Call serialEvent after every byte (looking for start)
     
     sm_main = 0;
     sm_getStart = 0;
     msg_id = "";
     msg_chk = 0;
+    msg_chk_computed = 0;
     msg_len = 0;
     
     map_resolution_mm = 1;
@@ -91,6 +92,66 @@ class Map
       p.println(out);
   }
   
+  private void processLWP()
+  {
+    /// One waypoint contains:
+    /// x (2 bytes)
+    /// y (2 bytes)
+    /// z (1 byte)
+    /// id (2 bytes)
+    /// id prev (2 bytes)
+    /// -> 9 bytes per waypoint
+
+    wp_amount = msgBuf[0] + (msgBuf[1] << 8);
+    
+    wp = new Waypoint[wp_amount]; //We reserve the memory for all waypoints to transmit
+    
+    for(int i = 0; i < wp_amount; i ++) //The list is transmitted in the order they are linked!
+    {
+      wp[i] = new Waypoint(p);
+      wp[i].setPosX(msgBuf[(i * 9) + 2] + (msgBuf[(i * 9) + 3] << 8));
+      wp[i].setPosY(msgBuf[(i * 9) + 4] + (msgBuf[(i * 9) + 5] << 8));
+      wp[i].setPosZ((byte)msgBuf[(i * 9) + 6]);
+      wp[i].setID(msgBuf[(i * 9) + 7] + (msgBuf[(i * 9) + 8] << 8));
+      int wpID_prev = msgBuf[(i * 9) + 9] + (msgBuf[(i * 9) + 10] << 8);
+      if(wpID_prev != -1 && i != 0) //There is a waypoint in the list before this one, otherwise it represents the start of the list
+      {
+        wp[i-1].setNext(wp[i]);
+        wp[i].setPrev(wp[i-1]);
+      }
+      else
+      {
+        wpStart = wp[i];
+      }
+    }
+  }
+  
+  private void processMPD()
+  {
+    map_resolution_mm = msgBuf[0];
+    map_size_X = msgBuf[1] + (msgBuf[2] << 8);
+    map_size_Y = msgBuf[3] + (msgBuf[4] << 8);
+    map_layers = msgBuf[5];
+    rob_x = msgBuf[6] + (msgBuf[7] << 8);
+    rob_y = msgBuf[8] + (msgBuf[9] << 8);
+    rob_z = msgBuf[10];
+    rob_dir = msgBuf[11] + (msgBuf[12] << 8);
+    
+    if(map == null)
+      map = new int[map_size_X / map_resolution_mm][map_size_Y / map_resolution_mm][map_layers];
+  }
+  
+  private void processMAP()
+  {
+    int y = msgBuf[1] + (msgBuf[2] << 8);
+    int z = msgBuf[0];
+     
+    for(int x = 0; x < (map_size_X / map_resolution_mm); x ++)
+    {
+      map[x][y][z] = msgBuf[x + 3];
+    }
+  }
+  
   public void processSerialIn(Serial btIn)
   {
     switch(sm_main)
@@ -99,189 +160,92 @@ class Map
           if(getStart(btIn) == true)
           {
             prntLn("Start gef");
-            btIn.buffer(2); //Buffer length (2 bytes)
             sm_main ++;
           }
         //  else if(sm_getStart == 0)
           //  debug += btIn.readChar();
             
         break;
-      case 1:
-          msg_len = btIn.read() + (btIn.read() << 8);
-          prntLn("");
-          prntLn("Lenght: " + msg_len);
-          btIn.buffer(4); //Buffer Checksum (4 bytes)
-          sm_main ++;
-        break;
+      case 1:   msg_len = btIn.read();            sm_main ++;    break;  //Lenght (2 bytes)
       case 2:
-          msg_chk = btIn.read() + (btIn.read() << 8) + (btIn.read() << 16) + (btIn.read() << 24);
-          prntLn("Checksum: " + msg_chk);
-          btIn.buffer(3); //Buffer ID (3 bytes)
-          sm_main ++;
+                msg_len += (btIn.read() << 8);
+                prntLn("");
+                if(msg_len < 512)
+                {
+                  prntLn("Lenght: " + msg_len);
+                  sm_main ++;
+                }
+                else
+                {
+                  prntLn("ERR: length > 512 Bytes: " + msg_len);
+                  sm_main = 0;
+                }
+                
         break;
-      case 3:
-          msg_id = "";
-          msg_id += btIn.readChar();
-          msg_id += btIn.readChar();
-          msg_id += btIn.readChar();
+      case 3:   msg_chk = btIn.read();           sm_main ++;    break; //Checksum (4 bytes)
+      case 4:   msg_chk += (btIn.read() << 8);   sm_main ++;    break;
+      case 5:   msg_chk += (btIn.read() << 16);  sm_main ++;    break;
+      case 6:   msg_chk += (btIn.read() << 24);
+                prntLn("Checksum: " + msg_chk);
+                msg_id = ""; //clear last received ID
+                sm_main ++;
+                break;
+      case 7:   msg_id += btIn.readChar();       sm_main ++;    break; //ID (3 bytes/chars)
+      case 8:   msg_id += btIn.readChar();          sm_main ++;    break;
+      case 9:   msg_id += btIn.readChar();
+                msg_chk_computed = 0;
+                msgBufCount = 0;
+                msgBuf = new int[msg_len];
+                sm_main ++;
+                break;
+      
+      case 10: //Buffer Message
+                if(msgBufCount < msg_len)
+                {
+                  msgBuf[msgBufCount] = btIn.read();
+                  msg_chk_computed += msgBuf[msgBufCount];
+                  msgBufCount ++;
+                }
+                else
+                {
+                  if(msg_chk_computed == msg_chk)
+                  {
+                    prntLn("checksum matches!");
+                    
+                    if(msg_id.equals("MPD"))
+                    {
+                      prntLn("Received Mapdata");
+                      processMPD();
+                    }
+                    else if(msg_id.equals("MAP"))
+                    {
+                      if(map == null) //Not received mapData yet
+                      {
+                        prntLn("Received Map, but not Mapdatay yet...");
+                      }
+                      else
+                      {
+                        prntLn("Received Map");
+                        processMAP();
+                      }
+                    }
+                    else if(msg_id.equals("LWP"))
+                    {
+                      prntLn("Received Waypoint List");
+                      processLWP();
+                    }
+                    else
+                    {
+                      prntLn("Failed to match ID: " + msg_id);
+                    }
+                    
+                  }
+                  else
+                    prntLn("chk not matching! comp: " + msg_chk_computed);
+                
+                  sm_main = 0;
+                }
           
-          if(msg_id.equals("MPD"))
-          {
-            prntLn("Received Mapdata");
-            btIn.buffer(msg_len); //Buffer data
-            sm_main = 4;
-          }
-          else if(msg_id.equals("MAP"))
-          {
-            if(map == null) //Not received mapData yet
-            {
-              prntLn("Received Map, but not Mapdatay yet...");
-              btIn.buffer(1); //Search start
-              sm_main = 0;
-            }
-            else
-            {
-              prntLn("Received Map");
-               
-              mapMsgCount = 0;
-              mapBuf = new int[msg_len];
-              btIn.buffer(1); //buffer each received byte in the mapBuf,...
-              
-              sm_main = 5;
-            }
-          }
-          else if(msg_id.equals("LWP"))
-          {
-            prntLn("Received Waypoint List");
-            btIn.buffer(msg_len);
-            sm_main = 6;
-          }
-          else
-          {
-            prntLn("Failed to match ID: " + msg_id);
-            btIn.buffer(1); //Search start
-            sm_main = 0;
-          }
-        break;
-      case 4: //MPD
-          
-          int[] buf = new int[msg_len];
-          int msg_chk_computed = 0;
-          
-          for(int i = 0; i < msg_len; i++) //Compute received checksum
-          {
-            buf[i] = btIn.read();
-            msg_chk_computed += buf[i];
-          }
-          
-          if(msg_chk_computed == msg_chk)
-          {
-            prntLn("checksum matches!");
-            
-            map_resolution_mm = buf[0];
-            map_size_X = buf[1] + (buf[2] << 8);
-            map_size_Y = buf[3] + (buf[4] << 8);
-            map_layers = buf[5];
-            rob_x = buf[6] + (buf[7] << 8);
-            rob_y = buf[8] + (buf[9] << 8);
-            rob_z = buf[10];
-            rob_dir = buf[11] + (buf[12] << 8);
-            
-            if(map == null)
-              map = new int[map_size_X / map_resolution_mm][map_size_Y / map_resolution_mm][map_layers];
-          }
-          else
-            prntLn("chk not matching! comp: " + msg_chk_computed);
-            
-          sm_main = 0;
-        break;
-      case 5: //MAP
-        
-          if(mapMsgCount < msg_len)
-          {
-            mapBuf[mapMsgCount] = btIn.read();
-            mapMsgCount ++;
-          }
-          else
-          {
-            //int[] mapBuf = new int[msg_len];
-            int map_chk_computed = 0;
-            
-            for(int i = 0; i < msg_len; i++) //Compute received checksum
-            {
-              map_chk_computed += mapBuf[i];
-            }
-            
-            if(map_chk_computed == msg_chk)
-            {
-              prntLn("checksum matches!");
-              
-              int y = mapBuf[1] + (mapBuf[2] << 8);
-              int z = mapBuf[0];
-               
-              for(int x = 0; x < (map_size_X / map_resolution_mm); x ++)
-              {
-                map[x][y][z] = mapBuf[x + 3];
-              }
-            }
-            else
-              prntLn("chk not matching! comp: " + map_chk_computed);
-            
-            sm_main = 0;
-          }
-          
-        break;
-      case 6: //LWP (Waypoint List)
-          
-          /// One waypoint contains:
-          /// x (2 bytes)
-          /// y (2 bytes)
-          /// z (1 byte)
-          /// id (2 bytes)
-          /// id_next (2 bytes)
-          /// id prev (2 bytes)
-          /// -> 11 bytes per waypoint
-
-          int[] wpBuf = new int[msg_len];
-          int wp_chk_computed = 0;
-          
-          for(int i = 0; i < msg_len; i++) //Compute received checksum
-          {
-            wpBuf[i] = btIn.read();
-            
-            wp_chk_computed += wpBuf[i];
-          }
-          
-          if(wp_chk_computed == msg_chk)
-          {
-            prntLn("checksum matches!");
-            wp_amount = wpBuf[0] + (wpBuf[1] << 8);
-            
-            wp = new Waypoint[wp_amount]; //We reserve the memory for all waypoints to transmit
-            
-            for(int i = 0; i < wp_amount; i ++) //The list is transmitted in the order they are linked!
-            {
-              wp[i] = new Waypoint(p);
-              wp[i].setPosX(wpBuf[(i * 9) + 2] + (wpBuf[(i * 9) + 3] << 8));
-              wp[i].setPosY(wpBuf[(i * 9) + 4] + (wpBuf[(i * 9) + 5] << 8));
-              wp[i].setPosZ((byte)wpBuf[(i * 9) + 6]);
-              wp[i].setID(wpBuf[(i * 9) + 7] + (wpBuf[(i * 9) + 8] << 8));
-              int wpID_prev = wpBuf[(i * 9) + 9] + (wpBuf[(i * 9) + 10] << 8);
-              if(wpID_prev != -1 && i != 0) //There is a waypoint in the list before this one, otherwise it represents the start of the list
-              {
-                wp[i-1].setNext(wp[i]);
-                wp[i].setPrev(wp[i-1]);
-              }
-              else
-              {
-                wpStart = wp[i];
-              }
-            }
-          }
-          else
-            prntLn("chk not matching! comp: " + wp_chk_computed);
-            
-          sm_main = 0;
         break;
       default: sm_main = 0; break;
     }
