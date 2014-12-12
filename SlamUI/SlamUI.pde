@@ -29,7 +29,7 @@ void setup()
   
   map = new Map(this, comm, 0, 0, (height < width) ? height : width, (height < width) ? height : width);
 }
-
+  
 void draw()
 {
   background(0);
@@ -38,7 +38,6 @@ void draw()
   
   map.setScaledSizes(smallestScreenSize, smallestScreenSize);
   map.display();
-  
   
   //bt.write('A');
     

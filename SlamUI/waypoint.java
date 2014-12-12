@@ -92,11 +92,4 @@ class Waypoint
   {
     return previous;
   }
-  
-  void drawInMap(Comm c, float scaleX, float scaleY, int WP_SIZE) //x/y given in mm!
-  {
-    p.stroke(255, 255, 0); 
-    p.noFill();
-    p.ellipse((int)((getPosX()/c.getMapResolutionMM()) / scaleX), (int)(((c.getMapSizeYMM() - getPosY()) / c.getMapResolutionMM()) / scaleY), (int)(WP_SIZE / scaleX), (int)(WP_SIZE / scaleY));
-  }
 }
