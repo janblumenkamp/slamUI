@@ -2,7 +2,7 @@ import processing.core.*;
 
 class Waypoint
 {
-  PApplet p;
+  private PApplet p;
   
   private int x, y;
   private byte z;
@@ -93,11 +93,10 @@ class Waypoint
     return previous;
   }
   
-  
-  void drawInMap(int x, int y) //x/y given in mm!
+  void drawInMap(Comm c, float scaleX, float scaleY, int WP_SIZE) //x/y given in mm!
   {
-    p.stroke(255, 255, 0); //Robot position/direction arrow
+    p.stroke(255, 255, 0); 
     p.noFill();
-   // ellipse((int)((mpd_rob_x/mpd_map_resolution_mm) / mapScaleFacX), (int)(((mpd_map_size_Y - mpd_rob_y) / mpd_map_resolution_mm) / mapScaleFacY), 40, 40);
+    p.ellipse((int)((getPosX()/c.getMapResolutionMM()) / scaleX), (int)(((c.getMapSizeYMM() - getPosY()) / c.getMapResolutionMM()) / scaleY), (int)(WP_SIZE / scaleX), (int)(WP_SIZE / scaleY));
   }
 }

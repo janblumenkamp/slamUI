@@ -1,7 +1,7 @@
 import processing.core.*;
 import processing.serial.*;
 
-class Map
+class Comm
 {
   private PApplet p;
   private Serial bt;
@@ -34,7 +34,7 @@ class Map
   private Waypoint wpStart;
   private int wp_amount;
   
-  Map(PApplet parent, String port, int baud)
+  Comm(PApplet parent, String port, int baud)
   {
     p = parent;
     serialProxy = new SerialProxy();
