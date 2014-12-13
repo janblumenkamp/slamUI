@@ -140,14 +140,33 @@ class Comm
       map = new int[map_size_X / map_resolution_mm][map_size_Y / map_resolution_mm][map_layers];
   }
   
-  private void processMAP()
+  private void processMAR() //run-length encoded map
   {
     int y = msgBuf[1] + (msgBuf[2] << 8);
     int z = msgBuf[0];
-     
-    for(int x = 0; x < (map_size_X / map_resolution_mm); x ++)
+    
+    int x = 0;
+    for(int i = 3; i < msg_len; i += 2)
     {
-      map[x][y][z] = msgBuf[x + 3];
+      for(int j = 0; j < msgBuf[i]; j++)
+      {
+        if(x + 1 < map_size_X / map_resolution_mm)
+        {
+          map[x][y][z] = msgBuf[i + 1];
+          x++;
+        }
+      }
+    }
+  }
+  
+  private void processMAP() //normal map transmission
+  {
+    int y = msgBuf[1] + (msgBuf[2] << 8);
+    int z = msgBuf[0];
+    
+    for(int x = 3; x < msg_len; x ++)
+    {
+      map[x-3][y][z] = msgBuf[x];
     }
   }
   
@@ -220,16 +239,24 @@ class Comm
                       prntLn("Received Mapdata");
                       processMPD();
                     }
-                    else if(msg_id.equals("MAP"))
+                    else if(msg_id.equals("MAP") || msg_id.equals("MAR"))
                     {
                       if(map == null) //Not received mapData yet
                       {
-                        prntLn("Received Map, but not Mapdatay yet...");
+                        prntLn("Received Map, but not Mapdata yet...");
                       }
                       else
                       {
-                        prntLn("Received Map");
-                        processMAP();
+                        if(msg_id.equals("MAP"))
+                        {
+                          prntLn("Received Map");
+                          processMAP();
+                        }
+                        else
+                        {
+                          prntLn("Received Map (R)");
+                          processMAR();
+                        }
                       }
                     }
                     else if(msg_id.equals("LWP"))

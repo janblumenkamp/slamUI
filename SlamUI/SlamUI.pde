@@ -26,7 +26,7 @@ void setup()
   
   comm = new Comm(this, "/dev/rfcomm0", 460800);
   comm.setDebug(true);
-  comm.setConsole(true);
+  comm.setConsole(false);
   
   map = new Map(this, comm, 0, 0, (height < width) ? height : width, (height < width) ? height : width);
 }
