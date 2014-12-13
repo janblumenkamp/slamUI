@@ -7,9 +7,8 @@ class Waypoint
   private int x, y;
   private byte z;
   private int id;
-  private Waypoint previous, next;
   
-  Waypoint(PApplet parent, int _x, int _y, byte _z, int _id, Waypoint _next, Waypoint _prev)
+  Waypoint(PApplet parent, int _x, int _y, byte _z, int _id)
   {
     p = parent;
     
@@ -17,8 +16,6 @@ class Waypoint
     y = _y;
     z = _z;
     id = _id;
-    next = _next;
-    previous = _prev;
   }
   
   Waypoint(PApplet parent)
@@ -29,8 +26,6 @@ class Waypoint
     y = 0;
     z = 0;
     id = -1;
-    previous = null;
-    next = null;
   }
   
   public void setPosX(int _x)
@@ -53,16 +48,6 @@ class Waypoint
     id = _id;
   }
   
-  public void setNext(Waypoint _n)
-  {
-    next = _n;      
-  }
-  
-  public void setPrev(Waypoint _p)
-  {
-    previous = _p;
-  }
-  
   public int getPosX()
   {
     return x;
@@ -81,15 +66,5 @@ class Waypoint
   public int getID()
   {
     return id;
-  }
-  
-  public Waypoint getNext()
-  {
-    return next;
-  }
-  
-  public Waypoint getPrev()
-  {
-    return previous;
   }
 }

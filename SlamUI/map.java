@@ -16,6 +16,8 @@ class Map
   private int rob_scaleFac; //Scale factor of robot arrow in relation to map size
   private int wp_scaleFac; //Scale factor of waypoint in relation to map size
   
+  Waypoint wpHovered; //Hovered waypoint
+  
   Map(PApplet parent, Comm comm, int _x, int _y, int w, int h)
   {
     p = parent;
@@ -27,7 +29,7 @@ class Map
     scaledHeight = h;
     
     rob_scaleFac = 15;
-    wp_scaleFac = 5;
+    wp_scaleFac = 10;
     
     img = p.createImage(300, 300, p.GRAY);
   }
@@ -90,11 +92,21 @@ class Map
     int b = (int)(wp_scaleFac / scaleFacY);
     
     p.stroke(255, 255, 0); 
-    if(ellIsHovered(x, y, a, b))
+    if(w == wpHovered)
       p.fill(p.color(255, 0, 0));
     else
       p.noFill();
     p.ellipse(x, y, a, b);
+  }
+  
+  private boolean checkWPHovered(Waypoint w)
+  {
+    int x = (int)((w.getPosX()/c.getMapResolutionMM()) / scaleFacX);
+    int y = (int)(((c.getMapSizeYMM() - w.getPosY()) / c.getMapResolutionMM()) / scaleFacY);
+    int a = (int)(wp_scaleFac / scaleFacX);
+    int b = (int)(wp_scaleFac / scaleFacY);
+    
+    return ellIsHovered(x, y, a, b);
   }
   
   private void connectWP(Waypoint a, Waypoint b) //Draws a line between this two waypoints
@@ -122,6 +134,19 @@ class Map
          mapY + (int)((c.getMapSizeYPx() - c.getRobPosYPx()) / scaleFacY) - (rob_scaleFac / scaleFacY) * p.cos((110 + c.getRobOrientation()) * (p.PI / 180)));
   }
   
+  private boolean ellIsHovered(int _x, int _y, int a, int b) //Is the mouse in an area around r pixels around x/y?
+  {
+    float x = p.mouseX - _x;
+    float y = p.mouseY - _y;
+    a /= 2;
+    b /= 2;
+    
+    if((((x * x) / (a * a)) + ((y * y) / (b * b))) < 1)
+      return true;
+    else
+      return false;
+  }
+  
   public void display()
   {
     if((c.getMapSizeXMM() != 0) && (c.getMapSizeYMM() != 0))
@@ -143,30 +168,54 @@ class Map
     
       drawRobArr();
       
-      Waypoint wpMap = c.getWPstart();
-      if(wpMap != null)
+      wpHovered = null; //Assume no waypoint is hovered
+        
+      if(c.getWP(0) != null) //Startpoint exists!
       {
         for(int i = 0; i < c.getWPamount(); i++)
         {
-          drawWP(wpMap);
-          connectWP(wpMap.getPrev(), wpMap);
+          if(checkWPHovered(c.getWP(i))) //In case a wp is hovered, set wpHovered to that object
+            wpHovered = c.getWP(i);
           
-          wpMap = wpMap.getNext();
+          drawWP(c.getWP(i));
+          if(i > 0)
+            connectWP(c.getWP(i-1), c.getWP(i));
         }
-      }    
+      }
     }
   }
   
-  boolean ellIsHovered(int _x, int _y, int a, int b) //Is the mouse in an area around r pixels around x/y?
+  public void mouseDragged() //HAS TO BE CALLED FROM PApplet mouseClicked!
   {
-    float x = p.mouseX - _x;
-    float y = p.mouseY - _y;
-    a /= 2;
-    b /= 2;
+    //c.setReceiveWP(false); //Dont receive Waypoints anymore
+    if(wpHovered != null)
+    {
+      wpHovered.setPosX((int)((p.mouseX - mapX) * scaleFacX) * c.getMapResolutionMM());
+      wpHovered.setPosY((int)(c.getMapSizeYPx() - (p.mouseY - mapY) * scaleFacY) * c.getMapResolutionMM());
+    }
+  }
+  
+  public void mouseClicked() //HAS TO BE CALLED FROM PApplet mouseClicked!
+  {
+    if(wpHovered != null)
+    {
+      if(p.mouseButton == p.RIGHT)
+      {
+        c.removeWPofID(wpHovered.getID());
+        c.sendWPList();
+      }
+    }
+  }
+  
+  public void mouseReleased() //HAS TO BE CALLED FROM PApplet mouseReleased!
+  {
+    if(wpHovered == null) //No waypoint was selected -> Add Waypoint!
+    {
+      c.addWP((int)((p.mouseX - mapX) * scaleFacX) * c.getMapResolutionMM(),
+              (int)(c.getMapSizeYPx() - (p.mouseY - mapY) * scaleFacY) * c.getMapResolutionMM(),
+              c.getRobPosZ());
+    }
     
-    if((((x * x) / (a * a)) + ((y * y) / (b * b))) < 1)
-      return true;
-    else
-      return false;
+    c.sendWPList();
   }
 }

@@ -26,6 +26,7 @@ void setup()
   
   comm = new Comm(this, "/dev/rfcomm0", 460800);
   comm.setDebug(true);
+  comm.setConsole(true);
   
   map = new Map(this, comm, 0, 0, (height < width) ? height : width, (height < width) ? height : width);
 }
@@ -38,9 +39,6 @@ void draw()
   
   map.setScaledSizes(smallestScreenSize, smallestScreenSize);
   map.display();
-  
-  //bt.write('A');
-    
   /*fill(50);
   textSize(20);
   text(map[10][10][0], 300, 100);*/
@@ -52,6 +50,7 @@ void draw()
 
 void mouseReleased()
 {
+  map.mouseReleased();
   /*println("Re-init...");
   bt.clear();
   bt.stop();
@@ -60,6 +59,16 @@ void mouseReleased()
   bt.buffer(1); //Call serialEvent after every byte (looking for start)
   sm_main = 0;
   sm_getStart = 0;*/
+}
+
+void mouseDragged()
+{
+  map.mouseDragged();
+}
+
+void mouseClicked()
+{
+  map.mouseClicked();
 }
 
 void stop()
