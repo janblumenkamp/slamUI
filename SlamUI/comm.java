@@ -42,7 +42,7 @@ class Comm
     p = parent;
     serialProxy = new SerialProxy();
     bt = new Serial(serialProxy, port, baud);
-    
+      
     sm_main = 0;
     sm_getStart = 0;
     msg_id = "";
@@ -178,7 +178,7 @@ class Comm
           char dat = btIn.readChar();
           if(getStart(dat) == true)
           {
-            prntLn("Start gef");
+            prntLn("Start");
             sm_main ++;
           }
           else if(useAsConsole)
@@ -193,12 +193,12 @@ class Comm
                 prntLn("");
                 if(msg_len < 512)
                 {
-                  prntLn("Lenght: " + msg_len);
+                  prntLn("LEN: " + msg_len);
                   sm_main ++;
                 }
                 else
                 {
-                  prntLn("ERR: length > 512 Bytes: " + msg_len);
+                  prntLn("ERR: LEN>512B: " + msg_len);
                   sm_main = 0;
                 }
                 
@@ -207,7 +207,7 @@ class Comm
       case 4:   msg_chk += (btIn.read() << 8);   sm_main ++;    break;
       case 5:   msg_chk += (btIn.read() << 16);  sm_main ++;    break;
       case 6:   msg_chk += (btIn.read() << 24);
-                prntLn("Checksum: " + msg_chk);
+                prntLn("Chk: " + msg_chk);
                 msg_id = ""; //clear last received ID
                 sm_main ++;
                 break;
@@ -232,49 +232,49 @@ class Comm
                 {
                   if(msg_chk_computed == msg_chk)
                   {
-                    prntLn("checksum matches!");
+                    prntLn("CHK OK");
                     
                     if(msg_id.equals("MPD"))
                     {
-                      prntLn("Received Mapdata");
+                      prntLn("RX MPD");
                       processMPD();
                     }
                     else if(msg_id.equals("MAP") || msg_id.equals("MAR"))
                     {
                       if(map == null) //Not received mapData yet
                       {
-                        prntLn("Received Map, but not Mapdata yet...");
+                        prntLn("RX MAP wo MPD");
                       }
                       else
                       {
                         if(msg_id.equals("MAP"))
                         {
-                          prntLn("Received Map");
+                          prntLn("RX MAP");
                           processMAP();
                         }
                         else
                         {
-                          prntLn("Received Map (R)");
+                          prntLn("RX MAR");
                           processMAR();
                         }
                       }
                     }
                     else if(msg_id.equals("LWP"))
                     {
-                      prntLn("Received Waypoint List");
+                      prntLn("RX LWP");
                       if(wpReceive)
                         processLWP();
                       else
-                        prntLn("Receive Waypoint: DISABLED");
+                        prntLn("RX LWP off");
                     }
                     else
                     {
-                      prntLn("Failed to match ID: " + msg_id);
+                      prntLn("RX UNKNOWN_ID: " + msg_id);
                     }
                     
                   }
                   else
-                    prntLn("chk not matching! comp: " + msg_chk_computed);
+                    prntLn("CHK ERR: " + msg_chk_computed);
                 
                   sm_main = 0;
                 }

@@ -1,3 +1,4 @@
+
 /**
  * Simple Read
  * 
@@ -9,9 +10,13 @@
 
 import processing.serial.*;
 import processing.core.*;
+import g4p_controls.*;
 
 Comm comm; //Serial communication interface with robot
 Map map; //Map element (drawing operations)
+
+GDropList dropList_commports; 
+GButton btnConnect; 
 
 final static int ROBOT_MAP_SIZE = 15;
 final static int WP_MAP_SIZE = 5;
@@ -21,24 +26,30 @@ void setup()
   size(800, 600);
   frame.setResizable(true);
   
-  //frameRate(4);
-  println(Serial.list());
+  G4P.messagesEnabled(false);
+  G4P.setGlobalColorScheme(GCScheme.BLUE_SCHEME);
+  G4P.setCursor(ARROW);
   
-  comm = new Comm(this, "/dev/rfcomm0", 460800);
-  comm.setDebug(true);
-  comm.setConsole(false);
+  dropList_commports = new GDropList(this, 10, 10, 130, 300, 15);
+  dropList_commports.setItems(Serial.list(), 0);
+  btnConnect = new GButton(this, 150, 10, 80, 20);
+  btnConnect.setText("Connect");
+  btnConnect.addEventHandler(this, "btnConnect_click");
   
-  map = new Map(this, comm, 0, 0, (height < width) ? height : width, (height < width) ? height : width);
+  map = new Map(this, 0, 0, (height < width) ? height : width, (height < width) ? height : width);
 }
   
 void draw()
 {
-  background(0);
+  background(255);
   
-  int smallestScreenSize = (height < width) ? height : width;
+  if(comm != null)
+  {
+    int smallestScreenSize = (height < width) ? height : width;
   
-  map.setScaledSizes(smallestScreenSize, smallestScreenSize);
-  map.display();
+    map.setScaledSizes(smallestScreenSize, smallestScreenSize);
+    map.display();
+  }
   /*fill(50);
   textSize(20);
   text(map[10][10][0], 300, 100);*/
@@ -50,7 +61,10 @@ void draw()
 
 void mouseReleased()
 {
-  map.mouseReleased();
+  if(comm != null)
+  {
+    map.mouseReleased();
+  }
   /*println("Re-init...");
   bt.clear();
   bt.stop();
@@ -63,24 +77,51 @@ void mouseReleased()
 
 void mouseDragged()
 {
-  map.mouseDragged();
+  if(comm != null)
+  {
+    map.mouseDragged();
+  }
 }
 
 void mouseClicked()
 {
-  map.mouseClicked();
+  if(comm != null)
+  {
+    map.mouseClicked();
+  }
+}
+
+void btnConnect_click(GButton source, GEvent event)
+{
+  try
+  {
+    comm = new Comm(this, dropList_commports.getSelectedText(), 460800);
+    map.setComm(comm);
+    comm.setDebug(true);
+    comm.setConsole(false);
+  }
+  catch(Exception e)
+  {
+    println("Error: Can't connect to serial port" + dropList_commports.getSelectedText());
+  }
 }
 
 void stop()
 {
   println("Stop");
   
-  comm.stopConnection();
+  if(comm != null)
+  {
+    comm.stopConnection();
+  }
 }
 
 void exit()
 {
   println("Exit");
   
-  comm.stopConnection();
+  if(comm != null)
+  {
+    comm.stopConnection();
+  }
 }

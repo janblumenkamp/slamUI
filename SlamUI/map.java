@@ -18,10 +18,9 @@ class Map
   
   Waypoint wpHovered; //Hovered waypoint
   
-  Map(PApplet parent, Comm comm, int _x, int _y, int w, int h)
+  Map(PApplet parent, int _x, int _y, int w, int h)
   {
     p = parent;
-    c = comm;
     
     mapX = _x;
     mapY = _y;
@@ -32,6 +31,11 @@ class Map
     wp_scaleFac = 10;
     
     img = p.createImage(300, 300, p.GRAY);
+  }
+  
+  public void setComm(Comm comm) //Set comm after connection was established!
+  {
+    c = comm;
   }
   
   public void setPosX(int _x)
@@ -105,7 +109,7 @@ class Map
     int y = (int)(((c.getMapSizeYMM() - w.getPosY()) / c.getMapResolutionMM()) / scaleFacY);
     int a = (int)(wp_scaleFac / scaleFacX);
     int b = (int)(wp_scaleFac / scaleFacY);
-    
+      
     return ellIsHovered(x, y, a, b);
   }
   
@@ -188,7 +192,7 @@ class Map
   public void mouseDragged() //HAS TO BE CALLED FROM PApplet mouseClicked!
   {
     //c.setReceiveWP(false); //Dont receive Waypoints anymore
-    if(wpHovered != null)
+    if(wpHovered != null) //Comm connection established?
     {
       wpHovered.setPosX((int)((p.mouseX - mapX) * scaleFacX) * c.getMapResolutionMM());
       wpHovered.setPosY((int)(c.getMapSizeYPx() - (p.mouseY - mapY) * scaleFacY) * c.getMapResolutionMM());
@@ -197,7 +201,7 @@ class Map
   
   public void mouseClicked() //HAS TO BE CALLED FROM PApplet mouseClicked!
   {
-    if(wpHovered != null)
+    if(wpHovered != null) //Comm connection established?
     {
       if(p.mouseButton == p.RIGHT)
       {
@@ -215,7 +219,7 @@ class Map
               (int)(c.getMapSizeYPx() - (p.mouseY - mapY) * scaleFacY) * c.getMapResolutionMM(),
               c.getRobPosZ());
     }
-    
+      
     c.sendWPList();
   }
 }
