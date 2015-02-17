@@ -90,8 +90,8 @@ class Map
   
   private void drawWP(Waypoint w) //x/y given in mm!
   {
-    int x = (int)((w.getPosX()/c.getMapResolutionMM()) / scaleFacX);
-    int y = (int)(((c.getMapSizeYMM() - w.getPosY()) / c.getMapResolutionMM()) / scaleFacY);
+    int x = mapX + (int)((w.getPosX()/c.getMapResolutionMM()) / scaleFacX);
+    int y = mapY + (int)(((c.getMapSizeYMM() - w.getPosY()) / c.getMapResolutionMM()) / scaleFacY);
     int a = (int)(wp_scaleFac / scaleFacX);
     int b = (int)(wp_scaleFac / scaleFacY);
     
@@ -105,8 +105,8 @@ class Map
   
   private boolean checkWPHovered(Waypoint w)
   {
-    int x = (int)((w.getPosX()/c.getMapResolutionMM()) / scaleFacX);
-    int y = (int)(((c.getMapSizeYMM() - w.getPosY()) / c.getMapResolutionMM()) / scaleFacY);
+    int x = mapX + (int)((w.getPosX()/c.getMapResolutionMM()) / scaleFacX);
+    int y = mapY + (int)(((c.getMapSizeYMM() - w.getPosY()) / c.getMapResolutionMM()) / scaleFacY);
     int a = (int)(wp_scaleFac / scaleFacX);
     int b = (int)(wp_scaleFac / scaleFacY);
       
@@ -131,7 +131,7 @@ class Map
     p.line(mapX + (int)(c.getRobPosXPx() / scaleFacX),
          mapY + (int)((c.getMapSizeYPx() - c.getRobPosYPx()) / scaleFacY),
          mapX + (int)(c.getRobPosXPx() / scaleFacX) + (rob_scaleFac / scaleFacX) * p.sin((70 + c.getRobOrientation()) * (p.PI / 180)),
-         mapX + (int)((c.getMapSizeYPx() - c.getRobPosYPx()) / scaleFacY) - (rob_scaleFac / scaleFacY) * p.cos((70 + c.getRobOrientation()) * (p.PI / 180)));
+         mapY + (int)((c.getMapSizeYPx() - c.getRobPosYPx()) / scaleFacY) - (rob_scaleFac / scaleFacY) * p.cos((70 + c.getRobOrientation()) * (p.PI / 180)));
     p.line(mapX + (int)(c.getRobPosXPx() / scaleFacX),
          mapY + (int)((c.getMapSizeYPx() - c.getRobPosYPx()) / scaleFacY),
          mapX + (int)(c.getRobPosXPx() / scaleFacX) + (rob_scaleFac / scaleFacX) * p.sin((110 + c.getRobOrientation()) * (p.PI / 180)),

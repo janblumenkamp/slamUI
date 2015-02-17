@@ -48,6 +48,14 @@ void draw()
     int smallestScreenSize = (height < width) ? height : width;
   
     map.setScaledSizes(smallestScreenSize, smallestScreenSize);
+    if(height < width)
+    {
+      map.setPosX(abs(width - height));
+    }
+    else
+    {
+      map.setPosX(0);
+    }
     map.display();
   }
   /*fill(50);
@@ -93,16 +101,26 @@ void mouseClicked()
 
 void btnConnect_click(GButton source, GEvent event)
 {
-  try
+  if(comm == null)
   {
-    comm = new Comm(this, dropList_commports.getSelectedText(), 460800);
-    map.setComm(comm);
-    comm.setDebug(true);
-    comm.setConsole(false);
+    try
+    {
+      comm = new Comm(this, dropList_commports.getSelectedText(), 460800);
+      map.setComm(comm);
+      comm.setDebug(true);
+      comm.setConsole(false);
+      btnConnect.setText("Disconnect"); //Switch function of button, now we want to be able to disconnect
+    }
+    catch(Exception e)
+    {
+      println("Error (exception occured): Can't connect to serial port" + dropList_commports.getSelectedText());
+    }
   }
-  catch(Exception e)
+  else
   {
-    println("Error: Can't connect to serial port" + dropList_commports.getSelectedText());
+    comm.stopConnection();
+    comm = null;
+    btnConnect.setText("Connect"); //Switch function of button, now we want to be able to disconnect
   }
 }
 
