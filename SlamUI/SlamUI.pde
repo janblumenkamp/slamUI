@@ -16,7 +16,8 @@ Comm comm; //Serial communication interface with robot
 Map map; //Map element (drawing operations)
 
 GDropList dropList_commports; 
-GButton btnConnect; 
+GButton btn_connect; 
+GButton btn_refreshComm; 
 
 final static int ROBOT_MAP_SIZE = 15;
 final static int WP_MAP_SIZE = 5;
@@ -32,9 +33,12 @@ void setup()
   
   dropList_commports = new GDropList(this, 10, 10, 130, 300, 15);
   dropList_commports.setItems(Serial.list(), 0);
-  btnConnect = new GButton(this, 150, 10, 80, 20);
-  btnConnect.setText("Connect");
-  btnConnect.addEventHandler(this, "btnConnect_click");
+  btn_connect = new GButton(this, 150, 10, 80, 20);
+  btn_connect.setText("Connect");
+  btn_connect.addEventHandler(this, "btn_connect_click");
+  btn_refreshComm = new GButton(this, 240, 10, 80, 20);
+  btn_refreshComm.setText("Refresh");
+  btn_refreshComm.addEventHandler(this, "btn_refreshComm_click");
   
   map = new Map(this, 0, 0, (height < width) ? height : width, (height < width) ? height : width);
 }
@@ -99,7 +103,12 @@ void mouseClicked()
   }
 }
 
-void btnConnect_click(GButton source, GEvent event)
+void btn_refreshComm_click(GButton source, GEvent event)
+{
+  dropList_commports.setItems(Serial.list(), 0);
+}
+
+void btn_connect_click(GButton source, GEvent event)
 {
   if(comm == null)
   {
@@ -109,7 +118,7 @@ void btnConnect_click(GButton source, GEvent event)
       map.setComm(comm);
       comm.setDebug(true);
       comm.setConsole(false);
-      btnConnect.setText("Disconnect"); //Switch function of button, now we want to be able to disconnect
+      btn_connect.setText("Disconnect"); //Switch function of button, now we want to be able to disconnect
     }
     catch(Exception e)
     {
@@ -120,7 +129,7 @@ void btnConnect_click(GButton source, GEvent event)
   {
     comm.stopConnection();
     comm = null;
-    btnConnect.setText("Connect"); //Switch function of button, now we want to be able to disconnect
+    btn_connect.setText("Connect"); //Switch function of button, now we want to be able to disconnect
   }
 }
 
@@ -131,6 +140,7 @@ void stop()
   if(comm != null)
   {
     comm.stopConnection();
+    comm = null;
   }
 }
 
@@ -141,5 +151,6 @@ void exit()
   if(comm != null)
   {
     comm.stopConnection();
+    comm = null;
   }
 }
